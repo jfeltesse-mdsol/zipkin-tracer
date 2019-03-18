@@ -15,11 +15,8 @@ module ZipkinTracer
         b3_headers.each do |method, header|
           env[:request_headers][header] = trace_id.send(method).to_s
         end
-        if Trace.tracer && trace_id.sampled?
-          trace!(env, trace_id)
-        else
-          @app.call(env)
-        end
+        env[:request_headers]["X-B3-Sampled"] = "1"
+        trace!(env, trace_id)
       end
     end
 
@@ -32,10 +29,7 @@ module ZipkinTracer
     def b3_headers
       {
         trace_id: 'X-B3-TraceId',
-        parent_id: 'X-B3-ParentSpanId',
-        span_id: 'X-B3-SpanId',
-        sampled: 'X-B3-Sampled',
-        flags: 'X-B3-Flags'
+        span_id: 'X-B3-SpanId'
       }
     end
 
