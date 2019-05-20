@@ -1,3 +1,6 @@
+# 0.37.0
+* Allow the FaradayHandler to receive an optional configuration hash.
+
 # 0.36.2
 * Cleanup the gemspec. No code changes.
 

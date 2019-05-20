@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'zipkin-tracer/zipkin_null_sender'
+require 'zipkin-tracer/zipkin_sqs_sender'
 require 'lib/middleware_shared_examples'
 
 describe ZipkinTracer::FaradayHandler do
@@ -62,6 +63,38 @@ describe ZipkinTracer::FaradayHandler do
 
       include_examples 'makes requests with tracing'
       include_examples 'makes requests without tracing'
+    end
+  end
+
+  context 'configured from a config hash' do
+    let(:service_name) { 'service_name_from_config' }
+    let(:queue_name) { 'zipkin-sqs' }
+    let(:config) do
+      {
+        service_name: service_name,
+        sqs_queue_name: queue_name,
+        sample_rate: 1
+      }
+    end
+    let(:url) { 'https://service.example.com/some/path/here' }
+    let!(:middleware) { described_class.new(wrapped_app, nil, config) }
+
+    before do
+      Aws.config[:sqs] = {
+        stub_responses: {
+          get_queue_url: {
+            queue_url: "http://#{queue_name}.com"
+          }
+        }
+      }
+    end
+
+    it "uses the service name and sender set in the configuration" do
+      expect(middleware.service_name).to eq('service_name_from_config')
+      expect(middleware.tracer).to be_instance_of(Trace::ZipkinSqsSender)
+      expect(middleware.tracer).to receive(:flush!)
+
+      process('', url)
     end
   end
 end

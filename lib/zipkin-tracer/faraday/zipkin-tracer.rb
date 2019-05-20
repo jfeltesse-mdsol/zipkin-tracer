@@ -2,11 +2,23 @@ require 'faraday'
 require 'uri'
 
 module ZipkinTracer
-  # Faraday middleware. It will add CR/CS annotations to outgoing connections done by Faraday
+  # Faraday middleware.
+  # It will add CR/CS annotations to outgoing connections done by Faraday
+  # You can pass an optional configuration object to configure a sender in the case you're running an application
+  # that only makes outgoing requests and doesn't use the RackHandler
   class FaradayHandler < ::Faraday::Middleware
-    def initialize(app, service_name = nil)
+    attr_reader :service_name, :tracer
+
+    def initialize(app, service_name = nil, config = nil)
       @app = app
-      @service_name = service_name
+      if config
+        zipkin_config = ZipkinTracer::Config.new(app, config).freeze
+        @tracer = ZipkinTracer::TracerFactory.new.tracer(zipkin_config)
+        @service_name = zipkin_config.service_name || service_name
+      else
+        @tracer = Trace.tracer
+        @service_name = service_name
+      end
     end
 
     def call(env)
@@ -15,7 +27,7 @@ module ZipkinTracer
         b3_headers.each do |method, header|
           env[:request_headers][header] = trace_id.send(method).to_s
         end
-        if Trace.tracer && trace_id.sampled?
+        if tracer && trace_id.sampled?
           trace!(env, trace_id)
         else
           @app.call(env)
@@ -41,7 +53,7 @@ module ZipkinTracer
       method = env[:method].to_s
       url = env[:url].respond_to?(:host) ? env[:url] : URI.parse(env[:url].to_s)
       remote_endpoint = Trace::Endpoint.remote_endpoint(url, @service_name) # The endpoint we are calling.
-      Trace.tracer.with_new_span(trace_id, method.downcase) do |span|
+      tracer.with_new_span(trace_id, method.downcase) do |span|
         @span = span # So we can record on exceptions
         # annotate with method (GET/POST/etc.) and uri path
         span.kind = Trace::Span::Kind::CLIENT

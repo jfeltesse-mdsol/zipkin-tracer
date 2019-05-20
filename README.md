@@ -56,6 +56,24 @@ end
 Note that supplying the service name for the destination service is optional;
 the tracing will default to a service name derived from the first section of the destination URL (e.g. 'service.example.com' => 'service').
 
+#### Configuring a sender
+
+If you run an application that doesn't use the RackHandler you can pass a configuration hash to the middleware:
+
+```ruby
+faraday.use ZipkinTracer::FaradayHandler, nil, { service_name: "...", sqs_queue_name: "...", ... }
+```
+
+Providing a configuration will instruct the middleware to flush the traces after processing the response.
+
+Note that the value of `:service_name` from the configuration takes precedence over the 2nd argument:
+
+```ruby
+faraday.use ZipkinTracer::FaradayHandler, "my_service", { service_name: "my_configured_service", ... }
+# => service name is "my_configured_service"
+```
+
+
 ### Tracing Sidekiq workers
 
 Sidekiq tracing can be turned on by adding ZipkinTracer::Sidekiq::Middleware to your sidekiq middleware chain:
