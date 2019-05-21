@@ -14,7 +14,9 @@ module ZipkinTracer
       if config
         zipkin_config = ZipkinTracer::Config.new(app, config).freeze
         @tracer = ZipkinTracer::TracerFactory.new.tracer(zipkin_config)
-        config.logger.info("[zipkin] created tracer #{@tracer.inspect} with #{config.inspect}")
+        if config[:logger]
+          config[:logger].info("[zipkin] created tracer #{@tracer.inspect} with #{config.inspect}")
+        end
         @service_name = zipkin_config.service_name || service_name
       else
         @tracer = Trace.tracer

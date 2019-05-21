@@ -13,7 +13,9 @@ module Trace
         ::ZipkinTracer::HostnameResolver.new.spans_with_ips(spans, ZipkinSqsSender::IP_FORMAT).map(&:to_h)
       sqs = Aws::SQS::Client.new(**sqs_options)
       queue_url = sqs.get_queue_url(queue_name: queue_name).queue_url
-      sqs.send_message(queue_url: queue_url, message_body: JSON.generate(spans_with_ips))
+      body = JSON.generate(spans_with_ips)
+      sqs.send_message(queue_url: queue_url, message_body: body)
+      SuckerPunch.logger.info("[zipkin] sent to #{queue_url}: #{body}")
     rescue Aws::SQS::Errors::NonExistentQueue
       error_message = "A queue named '#{@queue_name}' does not exist."
       SuckerPunch.logger.error(error_message)
