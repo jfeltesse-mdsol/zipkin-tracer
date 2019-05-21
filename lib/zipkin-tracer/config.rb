@@ -8,7 +8,7 @@ module ZipkinTracer
     attr_reader :service_name, :sample_rate,
       :json_api_host, :zookeeper, :kafka_producer, :kafka_topic, :sqs_queue_name, :sqs_region, :log_tracing,
       :annotate_plugin, :filter_plugin, :whitelist_plugin,
-      :logger, :sampled_as_boolean, :trace_id_128bit
+      :async, :logger, :sampled_as_boolean, :trace_id_128bit
 
     def initialize(app, config_hash)
       config = config_hash || Application.config(app)
@@ -25,14 +25,15 @@ module ZipkinTracer
       @sqs_queue_name    = config[:sqs_queue_name]
       @sqs_region        = config[:sqs_region]
       # Percentage of traces which by default this service traces (as float, 1.0 means 100%)
-      @sample_rate       = config[:sample_rate]       || DEFAULTS[:sample_rate]
+      @sample_rate       = config[:sample_rate] || DEFAULTS[:sample_rate]
       # A block of code which can be called to do extra annotations of traces
       @annotate_plugin   = config[:annotate_plugin]   # call for trace annotation
       # A block of code which can be called to skip traces. Skip tracing if returns false
       @filter_plugin     = config[:filter_plugin]
       # A block of code which can be called to force sampling. Forces sampling if returns true
       @whitelist_plugin  = config[:whitelist_plugin]
-      @logger            = Application.logger
+      @async             = config[:async].nil? ? DEFAULTS[:async] : config[:async]
+      @logger            = config[:logger] || Application.logger
       # Was the logger in fact setup by the client?
       @log_tracing       = config[:log_tracing]
       # When set to false, it uses 1/0 in the 'X-B3-Sampled' header, else uses true/false
@@ -81,6 +82,7 @@ module ZipkinTracer
     end
 
     DEFAULTS = {
+      async: true,
       sample_rate: 0.1,
       sampled_as_boolean: true,
       trace_id_128bit: false
